@@ -1,6 +1,4 @@
 ---
-# Optional method of pinning a specific version of Jenkins and/or overriding the
-# default Jenkins packaging URL.
 # jenkins_version: "1.644"
 # jenkins_pkg_url: "https://www.example.com"
 
@@ -9,14 +7,18 @@ jenkins_package_state: present
 
 jenkins_connection_delay: 5
 jenkins_connection_retries: 60
-jenkins_home: /var/lib/jenkins
-jenkins_hostname: localhost
-jenkins_http_port: 8080
 jenkins_jar_location: /opt/jenkins-cli.jar
-jenkins_url_prefix: ""
 jenkins_java_options: "-Djenkins.install.runSetupWizard=false"
 
-jenkins_plugins: []
+# initial plugins related
+# plugins must be there
+jenkins_plugins:
+  - configuration-as-code-support
+  - configuration-as-code
+  - ssh-slaves
+  - credentials-plugin
+  - ssh-credentials-plugin
+  - simple-theme-plugin
 jenkins_plugins_state: present
 jenkins_plugin_updates_expiration: 86400
 jenkins_plugin_timeout: 30
@@ -35,3 +37,27 @@ jenkins_init_changes:
     value: "--prefix={{ jenkins_url_prefix }}"
   - option: "{{ jenkins_java_options_env_var }}"
     value: "{{ jenkins_java_options }}"
+
+# master binding related
+jenkins_hostname: 192.168.44.10.xip.io
+jenkins_http_port: 8080
+jenkins_url_prefix: "/"
+jenkins_username: "{{ jenkins_process_user }}"
+# jenkins linux system
+jenkins_user:  '{{ jenkins_process_user }}'
+jenkins_group: '{{ jenkins_process_user }}'
+jenkins_home:  "/var/lib/{{jenkins_user}}"
+jenkins_workspace: "{{jenkins_home}}/workspace"
+jenkins_htaccess: "{{jenkins_home}}/httpd.access"
+## slave_related
+jenkins_slave_user_name: {{ jenkins_admin_username }}
+jenkins_slave_user_password: {{ jenkins_admin_password }}
+jenkins_slave_username: {{ jenkins_user }}
+jenkins_ssh_slave_credentials: "jenkins_slave"
+jenkins_slave_hostname: 192.168.44.11.xip.io
+#
+# jjb related
+jjb_projects: []
+jjb_config_jenkins_user: {{ jenkins_admin_username }}
+jjb_config_jenkins_password: {{ jenkins_admin_password }}
+jjb_config_jenkins_url: http://{{ jenkins_hostname }}:{{ jenkin_http_port}}{{jenkins_url_prefix}}
