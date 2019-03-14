@@ -1,0 +1,60 @@
+---
+# Setup Jenkins slave node environment
+- name: run main tasks first
+  include: main.yml
+
+- name: Create Jenkins system user on slave node
+  user: name={{jenkins_slave_username}} home={{jenkins_home}} system=yes generate_ssh_key=yes
+
+- name: Create Jenkins workspace directory on slave node
+  file: name={{jenkins_workspace}}
+        owner={{jenkins_slave_username}}
+        group={{jenkins_group}}
+        state=directory
+
+- name: Configure sudoers for Jenkins system user
+  lineinfile: dest="/etc/sudoers.d/{{jenkins_slave_username}}"
+              line="{{jenkins_slave_username}} ALL=(ALL) NOPASSWD:ALL"
+              state=present
+              create=yes
+              mode=0440
+              validate='visudo -cf %s'
+
+- name: Add master public key to authorized keys
+  authorized_key:
+    user: '{{ jenkins_slave_username }}'
+    key: "{{ lookup('file', 'jenkins.pub') }}"
+
+
+- name: Download slave.jar from Jenkins server
+  become: true
+  become_user: jenkins
+  uri:
+    url: "http://{{jenkins_hostname}}:{{jenkins_http_port}}{{jenkins_url_prefix}}/jnlpJars/slave.jar"
+    dest: "{{jenkins_home}}/slave.jar"
+    user: "{{jenkins_slave_user_name}}"
+    password: "{{jenkins_slave_user_password}}"
+    validate_certs: false
+    force_basic_auth: true
+    status_code: 200, 304
+
+- name: Install Jenkins slave systemd service
+  template: src=templates/jenkins-slave.service.j2
+            dest=/etc/systemd/system/jenkins-slave.service
+            owner=root group=root mode=0644
+
+- name: Start Jenkins slave service
+  service: name=jenkins-slave enabled=true state=started
+
+
+- name: Add Jenkins slave node
+  uri:
+    url: http://{{jenkins_hostname}}:{{jenkins_http_port}}{{jenkins_url_prefix}}/scriptText/
+    method: POST
+    user: "{{jenkins_slave_user_name}}"
+    password: "{{jenkins_slave_user_password}}"
+    body: "script={{lookup('template', 'templates/add-ssh-slave.groovy.j2')|urlencode}}"
+    HEADER_Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    force_basic_auth: true
+    status_code: 200, 304

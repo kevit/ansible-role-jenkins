@@ -1,0 +1,4 @@
+---
+- name: Install JJB jobs to jenkins
+  include_role:
+    name: ansible-role-jenkins_job_builder
